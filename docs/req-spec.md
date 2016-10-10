@@ -94,8 +94,8 @@ A suggestion for a shortened version:
 * Sharing
 * Cultivating Virtue
 * Gratitude
-* Monks
-* Four Noble Truths
+* Monks (Non-buddhists: Wise and peaceful people)
+* Four Noble Truths (Non-buddhists: Self-compassion and compassion)
 * Meditation
 
 
