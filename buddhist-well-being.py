@@ -8,6 +8,8 @@ https://python-gtk-3-tutorial.readthedocs.io/en/latest/index.html
 
 """
 
+import gi
+gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 import bwb_model
 import time
@@ -31,7 +33,7 @@ class WellBeingWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Buddhist Well-Being")
 
-        self.set_default_size(200, 300)
+        self.set_default_size(800, 700)
 
         self.diary_labels_lt = []  # Used in the gui update function
         t_observances_lt = bwb_model.ObservanceM.get_all()
@@ -44,7 +46,6 @@ class WellBeingWindow(Gtk.Window):
         self.left_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 16)
         ###self.left_vbox.set_size_request(10, 10)
         self.window_hbox.add(self.left_vbox)
-        ########self.window_hbox.pack_start(self.left_vbox, True, True, 0)
 
         self.ten_observances_lb = Gtk.ListBox()
         self.ten_observances_lb.set_selection_mode(Gtk.SelectionMode.BROWSE)
@@ -67,11 +68,45 @@ class WellBeingWindow(Gtk.Window):
         self.left_vbox.pack_start(self.karma_lb, True, True, 0)
 
         #..diary
-        self.right_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL)
-        self.window_hbox.add(self.right_vbox)
+        self.middle_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL)
+        self.diary_frame = Gtk.Frame()
+        self.scrolled_window = Gtk.ScrolledWindow() #hadjustment=None, vadjustment=None
         self.diary_lb = Gtk.ListBox()
-        self.diary_lb.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.right_vbox.pack_start(self.diary_lb, True, True, 0)
+
+        self.scrolled_window.add(self.diary_lb)
+        self.diary_frame.add(self.scrolled_window)
+        self.middle_vbox.pack_start(self.diary_frame, True, True, 0)
+        self.window_hbox.add(self.middle_vbox)
+
+        self.diary_lb.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
+        self.scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.ALWAYS)
+        self.diary_frame.set_border_width(10)
+        self.diary_lb.set_margin_left(10)
+
+        # ..adding to diary
+        self.add_to_diary_text_view = Gtk.TextView()
+        self.middle_vbox.pack_end(self.add_to_diary_text_view, False, False, 0)
+        self.add_to_diary_text_view.set_size_request(-1, 40)
+
+        self.add_to_diary_button = Gtk.Button("Add new")
+        self.add_to_diary_button.connect('clicked', self.add_text_to_diary_button_pressed_fn)
+        self.middle_vbox.pack_end(self.add_to_diary_button, False, False, 0)
+
+        #experimental
+        self.right_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 16)
+        self.window_hbox.pack_start(self.right_vbox, True, True, 0)
+        self.diary_entry_cal = Gtk.Calendar()
+        self.diary_entry_cal.show()
+        #self.diary_entry_cal.mark_day(7)
+        self.right_vbox.pack_end(self.diary_entry_cal, False, False, 0)
+
+        self.slider_label = Gtk.Label("Loving Kindness")
+        self.right_vbox.pack_start(self.slider_label, False, False, 0)
+        self.slider = Gtk.HScale()
+        self.slider.set_range(0,100)
+        self.right_vbox.pack_start(self.slider, False, False, 0)
+        self.right_vbox.set_margin_right(20)
+
 
         """
         #..karma
@@ -124,29 +159,18 @@ class WellBeingWindow(Gtk.Window):
         self.adding_new_button = tkinter.ttk.Button(self, text="Add to Diary", command=self.add_text_to_diary_button_pressed_fn)
         self.adding_new_button.pack(side = tkinter.TOP)
 
-        # ..diary
-        # Scrollbar solution inspired by
-        # http://stackoverflow.com/questions/3085696/adding-a-scrollbar-to-a-group-of-widgets-in-tkinter
-        self.diary_lf = tkinter.ttk.LabelFrame(self, text="Diary")
-        self.diary_lf.pack(side = tkinter.LEFT, fill=tkinter.BOTH, expand=1)
-
-        self.diary_canvas = tkinter.Canvas(self.diary_lf)
-        self.diary_frame = tkinter.Frame(self.diary_canvas)
-        self.diary_frame.pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
-        self.diary_scrollbar = tkinter.Scrollbar(
-            self.diary_lf, orient=tkinter.VERTICAL, command=self.diary_canvas.yview)
-        self.diary_canvas.configure(yscrollcommand=self.diary_scrollbar.set)
-
-        self.diary_scrollbar.pack(side = tkinter.RIGHT, fill=tkinter.Y)
-        self.diary_canvas.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=1)  # , fill=tkinter.BOTH, expand=1
-        self.diary_canvas.create_window((10, 10), window=self.diary_frame, anchor="nw", tags="self.diary_frame")
-
-        self.diary_frame.bind("<Configure>", self.on_diary_frame_configure)
-
-        self.pack()
-        self.update_gui()
-
         """
+
+
+
+        self.context_menu = Gtk.Menu()
+        self.context_menu_item = Gtk.MenuItem("Delete")
+        self.context_menu_item.connect('button-press-event', self.on_delete_menu_item_pressed)
+        self.context_menu.append(self.context_menu_item)
+        self.context_menu.show_all()
+
+
+
 
         self.update_gui()
 
@@ -184,29 +208,24 @@ class WellBeingWindow(Gtk.Window):
         self.adding_new_karma_ey.delete(0, tkinter.END)
         self.update_gui()
 
-    def add_text_to_diary_button_pressed_fn(self):
-        t_cur_observance_sel_te = self.ten_observances_lb.curselection()
-        t_observance_pos_it = -1
-        if len(t_cur_observance_sel_te) > 0:
-            t_observance_pos_it = t_cur_observance_sel_te[0]
-        if t_observance_pos_it == -1:
-            return
+    def add_text_to_diary_button_pressed_fn(self, i_widget):
+        t_observance_pos_it = self.ten_observances_lb.get_selected_row().get_index()
 
-        t_cur_karma_sel_te = self.karma_lb.curselection()
-        t_karma_pos_it = -1
-        if len(t_cur_karma_sel_te) > 0:
-            t_karma_pos_it = t_cur_karma_sel_te[0]
+        t_karma_pos_it = self.karma_lb.get_selected_row().get_index()
 
-        notes_pre_sg = self.adding_text_to_diary_tt.get(1.0, tkinter.END).strip()
+        start = self.add_to_diary_text_view.get_buffer().get_start_iter()
+        end = self.add_to_diary_text_view.get_buffer().get_end_iter()
+        notes_pre_sg = self.add_to_diary_text_view.get_buffer().get_text(start, end, True) #.strip()
+        """
         if notes_pre_sg == "":
             notes_sg = notes_pre_sg
         else:
             notes_sg = notes_pre_sg + "\n"
-        bwb_model.DiaryM.add(int(time.time()), t_observance_pos_it, t_karma_pos_it, notes_sg)
+        """
+        bwb_model.DiaryM.add(int(time.time()), t_observance_pos_it, t_karma_pos_it, notes_pre_sg)
 
-        self.adding_text_to_diary_tt.delete(1.0, tkinter.END)
-        self.ten_observances_lb.selection_clear(0)  # Clearing the selection
-        self.karma_lb.selection_clear(0)
+        self.add_to_diary_text_view.set_buffer(Gtk.TextBuffer()) #-clearing
+
         self.update_gui()
 
     def open_karma_context_menu(self, i_event):
@@ -233,7 +252,8 @@ class WellBeingWindow(Gtk.Window):
         self.karma_lb.show_all()
 
 
-
+        self.diary_lb.foreach(lambda x: self.diary_lb.remove(x))
+        list_of_rows = []
         t_prev_diary_item = None
         for diary_item in bwb_model.DiaryM.get_all():
             t_diary_entry_obs_sg = bwb_model.ObservanceM.get(diary_item.observance_ref).short_name_sg
@@ -242,60 +262,34 @@ class WellBeingWindow(Gtk.Window):
 
             if t_prev_diary_item == None or not is_same_day(t_prev_diary_item.date_added_it, diary_item.date_added_it):
                 t_date_sg = datetime.datetime.fromtimestamp(diary_item.date_added_it).strftime("%A")
-
                 t_new_day_ll = Gtk.Label(t_date_sg)
-                self.right_vbox.pack_start(t_new_day_ll, True, True, 0)
-
-                """
-                t_new_day_ll = tkinter.Label(
-                    self.diary_frame,
-                    text=t_date_sg
-                )
-                t_new_day_ll.pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
-                """
+                self.diary_lb.add(t_new_day_ll)
 
             if t_karma == None:
                 t_diary_entry_karma_sg = ""
             else:
                 t_diary_entry_karma_sg = t_karma.description_sg.strip() + " "
 
-            """
-            t_cur_observance_sel_te = self.ten_observances_lb.curselection()
-            t_observance_pos_it = -1
-            if len(t_cur_observance_sel_te) > 0:
-                t_observance_pos_it = t_cur_observance_sel_te[0]
-            # Message widget: http://effbot.org/tkinterbook/message.htm
-            """
-
             t_label_text_sg = t_diary_entry_karma_sg + "[" + t_diary_entry_obs_sg.strip() + "] " + diary_item.notes_sg.strip()
             t_diary_entry_ll = Gtk.Label(t_label_text_sg)
-            print("t_label_text_sg = " + t_label_text_sg)
-            """
-            t_diary_entry_ll = tkinter.Label(
-                self.diary_frame,
-                text=t_diary_entry_karma_sg + "[" + t_diary_entry_obs_sg.strip() + "] " + diary_item.notes_sg.strip(),
-                justify=tkinter.LEFT, anchor=tkinter.W,
-                width=52, wraplength=500,
-                padx=15, pady=10,
-                borderwidth="1", relief="raised",
-                font=t_diary_entry_font
-            )
-            """
+            #t_diary_entry_ll.set_justify(Gtk.Justification.LEFT)
+            #t_diary_entry_ll.set_alignment()
+            t_diary_entry_ll.set_xalign(0)
+            t_diary_entry_ll.set_line_wrap(True)
+
             """
             if t_observance_pos_it == diary_item.observance_ref:
                 t_diary_entry_ll.configure(background="yellow")
             """
 
-            # width=300,
-            # relief="solid"raised
-            # anchor=tkinter.E,
-            # state=tkinter.ACTIVE
-            ###t_diary_entry_ll.bind("<Button-1>", self.diary_entry_clicked)
-            #######self.right_vbox.pack_start(t_diary_entry_ll, True, True, 0)
-            ###t_diary_entry_ll.pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
+            event_box = Gtk.EventBox()
+            #- Please note that the eventbox is not itself connected to the event, instead it wraps the widget that
+            #  is connected to the event
+            event_box.add(t_diary_entry_ll)
 
             row = Gtk.ListBoxRow()
-            row.add(t_diary_entry_ll)
+            row.connect('button-press-event', self.diary_entry_clicked)
+            row.add(event_box)
             self.diary_lb.add(row)
 
             t_prev_diary_item = diary_item
@@ -363,11 +357,41 @@ class WellBeingWindow(Gtk.Window):
 
         """
 
-    def diary_entry_clicked(self, i_event):
-        print("Diary entry clicked")
-        print(i_event.widget)
-        i_event.widget.config(relief="sunken")
+    def on_delete_menu_item_pressed(self, i_widget, i_event):
+        bwb_model.DiaryM.delete()
 
+    #http://lazka.github.io/pgi-docs/#Gdk-3.0/str
+    def diary_entry_clicked(self, i_widget, i_event):
+        print("Diary entry clicked")
+        if i_event.button == 1:
+            print("Left click")
+        elif i_event.button == 3:
+            print("Right click")
+        else:
+            print("Click with other button")
+
+        print("i_widget.get_index() = " + str(i_widget.get_index()))
+        #print(i_event.widget)
+        #i_event.widget.config(relief="sunken")
+
+
+
+        print("i_event.get_root_coords()[0] = " + str(i_event.get_root_coords()[0]))
+        print("i_event.get_root_coords()[1] = " + str(i_event.get_root_coords()[1]))
+
+        self.context_menu.popup(
+            None,
+            None,
+            self.menu_positioning_function,
+            None,
+            i_event.button,
+            i_event.time
+        )
+        ######lambda menu, x, y, data: (i_event.get_root_coords()[0], i_event.get_root_coords()[1], True)
+        return True
+
+    def menu_positioning_function(self, menu, x, y, data):
+        return (x, y, True)
 
 def pixels_from_monospace_characters(i_nr_of_chars_it):
     # i_font,
@@ -385,9 +409,12 @@ def is_same_day(i_first_date_it, i_second_date_it):
 
 if __name__ == "__main__":
     t_win = WellBeingWindow()
+    t_win.set_icon_from_file("icon.png")
     t_win.connect('delete-event', Gtk.main_quit)
     t_win.show_all()
     Gtk.main()
+
+
 
     ##root.resizable(width=False, height=True)
 

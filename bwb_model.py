@@ -243,6 +243,10 @@ class DiaryM:
         db_connection.commit()
 
     @staticmethod
+    def delete():
+        print("Deleting diary entry")
+
+    @staticmethod
     def get_all(i_reverse_bl = True):
         ret_diary_lt = []
         db_connection = DbHelperM.get_db_connection()
