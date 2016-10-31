@@ -1,20 +1,18 @@
 
 """
-Documentation:
+Gtk3 Documentation:
 https://developer.gnome.org/gtk3/stable/
 http://lazka.github.io/pgi-docs/Gtk-3.0/index.html
 https://python-gtk-3-tutorial.readthedocs.io/en/latest/index.html
-
-
 """
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
-import bwb_model
 import time
-from functools import partial
 import datetime
+#from functools import partial
+import bwb_model
 
 TEN_OBS_TEXT_WIDTH = 17 # in number of characters (so pixels can very)
 TEN_OBS_TEXT_FONT_SIZE = 14
@@ -25,11 +23,8 @@ DIARY_DATE_TEXT_WIDTH = 40
 ADDING_TO_DIARY_TEXT_WIDTH = 80
 DIARY_PIXEL_WIDTH = 300
 
-### DIARY_TEXT_FONT_SIZE = 10
-
 
 class WellBeingWindow(Gtk.Window):
-
     def __init__(self):
         Gtk.Window.__init__(self, title="Buddhist Well-Being")
 
@@ -40,17 +35,19 @@ class WellBeingWindow(Gtk.Window):
 
         self.window_hbox = Gtk.Box(spacing = 16, orientation = Gtk.Orientation.HORIZONTAL)
         self.add(self.window_hbox)
+
         # Creating widgets..
         # ..ten practices
-
         self.left_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 16)
-        ###self.left_vbox.set_size_request(10, 10)
-        self.window_hbox.add(self.left_vbox)
+        self.left_vbox.set_size_request(100, 100)
+        self.left_vbox.set_hexpand(False)
+        self.window_hbox.pack_start(self.left_vbox, False, False, 0)
 
         self.ten_observances_lb = Gtk.ListBox()
         self.ten_observances_lb.set_selection_mode(Gtk.SelectionMode.BROWSE)
+        self.ten_observances_lb.set_hexpand(False)
         #- https://people.gnome.org/~gcampagna/docs/Gtk-3.0/Gtk.SelectionMode.html
-        self.left_vbox.pack_start(self.ten_observances_lb, True, True, 0)
+        self.left_vbox.pack_start(self.ten_observances_lb, False, False, 0)
         for observance_item in t_observances_lt:
             row = Gtk.ListBoxRow()
             label = Gtk.Label(observance_item.short_name_sg, xalign=0)
@@ -60,12 +57,18 @@ class WellBeingWindow(Gtk.Window):
         self.ten_observances_lb.connect('row-activated', self.observance_selected_fn)
 
         self.ten_practices_details_ll = Gtk.Label("Nothing selected yet")
-        self.left_vbox.pack_start(self.ten_practices_details_ll, True, True, 0)
+        self.ten_practices_details_ll.set_line_wrap(True)
+        self.ten_practices_details_ll.set_max_width_chars(10)
+        #self.ten_practices_details_ll.set_width_chars(10)
+        #self.ten_practices_details_ll.set_size_request(100, 100)
+        #self.ten_practices_details_ll.set_hexpand(False)
+        self.left_vbox.pack_start(self.ten_practices_details_ll, False, False, 0)
 
         #..karma
         self.karma_lb = Gtk.ListBox()
         self.karma_lb.set_selection_mode(Gtk.SelectionMode.BROWSE)
-        self.left_vbox.pack_start(self.karma_lb, True, True, 0)
+        self.karma_lb.set_hexpand(False)
+        self.left_vbox.pack_start(self.karma_lb, False, False, 0)
 
         #..diary
         self.middle_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL)
@@ -76,7 +79,7 @@ class WellBeingWindow(Gtk.Window):
         self.scrolled_window.add(self.diary_lb)
         self.diary_frame.add(self.scrolled_window)
         self.middle_vbox.pack_start(self.diary_frame, True, True, 0)
-        self.window_hbox.add(self.middle_vbox)
+        self.window_hbox.pack_start(self.middle_vbox, False, False, 0)
 
         self.diary_lb.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
         self.scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.ALWAYS)
@@ -87,6 +90,9 @@ class WellBeingWindow(Gtk.Window):
         self.add_to_diary_text_view = Gtk.TextView()
         self.middle_vbox.pack_end(self.add_to_diary_text_view, False, False, 0)
         self.add_to_diary_text_view.set_size_request(-1, 40)
+        #self.add_to_diary_text_view.set_hexpand(False)
+        self.add_to_diary_text_view.set_wrap_mode(True)
+        #.set_max_width_chars(10)
 
         self.add_to_diary_button = Gtk.Button("Add new")
         self.add_to_diary_button.connect('clicked', self.add_text_to_diary_button_pressed_fn)
@@ -94,7 +100,7 @@ class WellBeingWindow(Gtk.Window):
 
         #experimental
         self.right_vbox = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 16)
-        self.window_hbox.pack_start(self.right_vbox, True, True, 0)
+        self.window_hbox.pack_start(self.right_vbox, False, False, 0)
         self.diary_entry_cal = Gtk.Calendar()
         self.diary_entry_cal.show()
         #self.diary_entry_cal.mark_day(7)
@@ -246,6 +252,9 @@ class WellBeingWindow(Gtk.Window):
             for karma_item in t_karma_lt:
                 row = Gtk.ListBoxRow()
                 label = Gtk.Label(karma_item.description_sg, xalign=0)
+                label.set_max_width_chars(10)
+                #label.set_width_chars(10)
+                label.set_line_wrap(True)
                 print("karma_item.description_sg = " + karma_item.description_sg)
                 row.add(label)
                 self.karma_lb.add(row)
@@ -406,6 +415,13 @@ def is_same_day(i_first_date_it, i_second_date_it):
     t_second = datetime.datetime.fromtimestamp(i_second_date_it)
 
     return t_first.date() == t_second.date()
+
+class NonExpandingLabel(Gtk.Label):
+    def __init__(self, i_title):
+        Gtk.Label.__init__(self, i_title)
+    #overriding
+    def compute_expand(self, i_orientation):
+        return False
 
 if __name__ == "__main__":
     t_win = WellBeingWindow()
