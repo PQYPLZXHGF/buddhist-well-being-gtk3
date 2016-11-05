@@ -217,7 +217,9 @@ class WellBeingWindow(Gtk.Window):
     def add_text_to_diary_button_pressed_fn(self, i_widget):
         t_observance_pos_it = self.ten_observances_lb.get_selected_row().get_index()
 
-        t_karma_pos_it = self.karma_lb.get_selected_row().get_index()
+        t_karma_pos_it = -1
+        if self.karma_lb.get_selected_row() is not None:
+            t_karma_pos_it = self.karma_lb.get_selected_row().get_index()
 
         start = self.add_to_diary_text_view.get_buffer().get_start_iter()
         end = self.add_to_diary_text_view.get_buffer().get_end_iter()
