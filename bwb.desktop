@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Buddhist Well-Being
+Exec=bash -c "cd /home/sunyata/PycharmProjects/buddhist-well-being-gtk3 && python3 /home/sunyata/PycharmProjects/buddhist-well-being-gtk3/buddhist-well-being.py"
+Terminal=true
+Type=Application
